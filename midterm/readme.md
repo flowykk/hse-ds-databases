@@ -251,7 +251,49 @@ JOIN LearningElement e ON e.element_type_id = et.element_type_id;
 
 # Задание 2
 
+### Найти, сколько максимально затрачено времени на урок в курсах сложности больше трех на тему Hadoop с видеоэлементами в зависимости от календарного месяца регистрации на курс
 
+```sql
+SELECT 
+    l.lesson_id,
+    MAX(TIMESTAMPDIFF(SECOND, sp.started_at, sp.finished_at)) AS max_time_spent,
+    YEAR(s.registration_date) AS reg_year,
+    MONTH(s.registration_date) AS reg_month
+FROM StudentProgress sp
+JOIN Lesson l ON sp.lesson_id = l.lesson_id
+JOIN Topic t ON l.topic_id = t.topic_id
+JOIN ElementType et ON sp.element_type_id = et.type_id
+JOIN Student s ON sp.student_id = s.student_id
+WHERE t.name = 'Hadoop'
+  AND sp.difficulty_level > 3
+  AND et.type_name = 'видео'
+  AND sp.finished_at IS NOT NULL
+GROUP BY l.lesson_id, YEAR(s.registration_date), MONTH(s.registration_date);
+```
+
+### Найти все темы, на которых училось максимальное количество студентов, зарегистрированных в прошлом году
+
+```sql
+WITH StudentsLastYear AS (
+    SELECT student_id
+    FROM Student
+    WHERE YEAR(registration_date) = YEAR(CURDATE()) - 1
+),
+TopicStudentCounts AS (
+    SELECT l.topic_id, COUNT(DISTINCT sp.student_id) AS student_count
+    FROM StudentProgress sp
+    JOIN Lesson l ON sp.lesson_id = l.lesson_id
+    WHERE sp.student_id IN (SELECT student_id FROM StudentsLastYear)
+    GROUP BY l.topic_id
+),
+MaxCount AS (
+    SELECT MAX(student_count) AS max_count FROM TopicStudentCounts
+)
+SELECT t.name
+FROM TopicStudentCounts tc
+JOIN Topic t ON tc.topic_id = t.topic_id
+JOIN MaxCount mc ON tc.student_count = mc.max_count;
+```
 
 # Задание 3
 
