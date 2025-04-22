@@ -34,7 +34,7 @@ CREATE TABLE Module (
 ### Уроки
 
 ```sql
-CREATE TABLE Dim_Lesson (
+CREATE TABLE Lesson (
     lesson_id BIGINT PRIMARY KEY,
     module_id BIGINT NOT NULL,
     topic_id BIGINT NOT NULL,
@@ -94,57 +94,13 @@ CREATE TABLE StudentProgress (
     finished_at DATETIME,
     score DECIMAL(5,2),
     is_required BOOLEAN NOT NULL,
-    FOREIGN KEY (student_id) REFERENCES Dim_Student(student_id),
-    FOREIGN KEY (course_id) REFERENCES Dim_Course(course_id),
-    FOREIGN KEY (module_id) REFERENCES Dim_Module(module_id),
-    FOREIGN KEY (lesson_id) REFERENCES Dim_Lesson(lesson_id),
-    FOREIGN KEY (element_id) REFERENCES Dim_Element(element_id),
-    FOREIGN KEY (topic_id) REFERENCES Dim_Topic(topic_id),
-    FOREIGN KEY (element_type_id) REFERENCES Dim_ElementType(type_id)
-);
-```
-
-## Учёт просмотра уроков/модулей/модулей
-
-### Просмотр уроков
-
-```sql
-CREATE TABLE StudentLessonStatus (
-    student_id BIGINT NOT NULL,
-    lesson_id BIGINT NOT NULL,
-    is_completed BOOLEAN NOT NULL,
-    completed_at DATETIME,
-    PRIMARY KEY (student_id, lesson_id),
     FOREIGN KEY (student_id) REFERENCES Student(student_id),
-    FOREIGN KEY (lesson_id) REFERENCES Lesson(lesson_id)
-);
-```
-
-### Просмотр модулей
-
-```sql
-CREATE TABLE StudentModuleStatus (
-    student_id BIGINT NOT NULL,
-    module_id BIGINT NOT NULL,
-    is_completed BOOLEAN NOT NULL,
-    completed_at DATETIME,
-    PRIMARY KEY (student_id, module_id),
-    FOREIGN KEY (student_id) REFERENCES Student(student_id),
-    FOREIGN KEY (module_id) REFERENCES Module(module_id)
-);
-```
-
-### Просмотр курсов
-
-```sql
-CREATE TABLE StudentCourseStatus (
-    student_id BIGINT NOT NULL,
-    course_id BIGINT NOT NULL,
-    is_completed BOOLEAN NOT NULL,
-    completed_at DATETIME,
-    PRIMARY KEY (student_id, course_id),
-    FOREIGN KEY (student_id) REFERENCES Student(student_id),
-    FOREIGN KEY (course_id) REFERENCES Course(course_id)
+    FOREIGN KEY (course_id) REFERENCES Course(course_id),
+    FOREIGN KEY (module_id) REFERENCES Module(module_id),
+    FOREIGN KEY (lesson_id) REFERENCES Lesson(lesson_id),
+    FOREIGN KEY (element_id) REFERENCES Element(element_id),
+    FOREIGN KEY (topic_id) REFERENCES Topic(topic_id),
+    FOREIGN KEY (element_type_id) REFERENCES ElementType(type_id)
 );
 ```
 
@@ -153,14 +109,17 @@ CREATE TABLE StudentCourseStatus (
 ### Cколько студентов зарегистрировано на курс/модуль/урок
 
 ```sql
+-- Для курса
 SELECT course_id, COUNT(DISTINCT student_id) AS student_count
 FROM StudentProgress
 GROUP BY course_id;
 
+-- Для модуля
 SELECT module_id, COUNT(DISTINCT student_id) AS student_count
 FROM StudentProgress
 GROUP BY module_id;
 
+-- Для урока
 SELECT lesson_id, COUNT(DISTINCT student_id) AS student_count
 FROM StudentProgress
 GROUP BY lesson_id;
@@ -169,37 +128,125 @@ GROUP BY lesson_id;
 ### Cколько суммарно/минимально/максимально затрачено времени на курс/модуль/урок
 
 ```sql
+SELECT course_id,
+       SUM(TIMESTAMPDIFF(SECOND, started_at, finished_at)) AS total_time,
+       MIN(TIMESTAMPDIFF(SECOND, started_at, finished_at)) AS min_time,
+       MAX(TIMESTAMPDIFF(SECOND, started_at, finished_at)) AS max_time
+FROM StudentProgress
+WHERE finished_at IS NOT NULL
+GROUP BY course_id;
+
+-- Для модуля
+SELECT module_id,
+       SUM(TIMESTAMPDIFF(SECOND, started_at, finished_at)) AS total_time,
+       MIN(TIMESTAMPDIFF(SECOND, started_at, finished_at)) AS min_time,
+       MAX(TIMESTAMPDIFF(SECOND, started_at, finished_at)) AS max_time
+FROM StudentProgress
+WHERE finished_at IS NOT NULL
+GROUP BY module_id;
+
+-- Для урока
+SELECT lesson_id,
+       SUM(TIMESTAMPDIFF(SECOND, started_at, finished_at)) AS total_time,
+       MIN(TIMESTAMPDIFF(SECOND, started_at, finished_at)) AS min_time,
+       MAX(TIMESTAMPDIFF(SECOND, started_at, finished_at)) AS max_time
+FROM StudentProgress
+WHERE finished_at IS NOT NULL
+GROUP BY lesson_id;
 ```
 
 ### С какой средней/минимальной/максимальной оценкой
 
 ```sql
+-- Для курса
+SELECT course_id,
+       AVG(score) AS avg_score,
+       MIN(score) AS min_score,
+       MAX(score) AS max_score
+FROM StudentProgress
+WHERE score IS NOT NULL
+GROUP BY course_id;
+
+-- Для модуля
+SELECT module_id,
+       AVG(score) AS avg_score,
+       MIN(score) AS min_score,
+       MAX(score) AS max_score
+FROM StudentProgress
+WHERE score IS NOT NULL
+GROUP BY module_id;
+
+-- Для уркоа
+SELECT lesson_id,
+       AVG(score) AS avg_score,
+       MIN(score) AS min_score,
+       MAX(score) AS max_score
+FROM StudentProgress
+WHERE score IS NOT NULL
+GROUP BY lesson_id;
 ```
 
 ### Набор тем
 
 ```sql
+SELECT * FROM Topic;
 ```
 
 ### Период времени (год/месяц/неделя/день) 
 
+**Если речь про количество начатых курсов, то информацию можно получить следующими запросами:**
+
 ```sql
+-- Количество начатых курсов по дням
+SELECT DATE(started_at) AS day, COUNT(*) AS views
+FROM StudentProgress
+GROUP BY DATE(started_at);
+
+-- Количество начатых курсов по месяцам
+SELECT YEAR(started_at) AS year, MONTH(started_at) AS month, COUNT(*) AS views
+FROM StudentProgress
+GROUP BY YEAR(started_at), MONTH(started_at);
+
+-- Количество начатых курсов по неделям
+SELECT YEAR(started_at) AS year, WEEK(started_at) AS week, COUNT(*) AS views
+FROM StudentProgress
+GROUP BY YEAR(started_at), WEEK(started_at);
 ```
 
 ### Время регистрации (последняя неделя/месяц/год или конкретный месяц/год)
 
 ```sql
+-- За последнюю неделю
+SELECT COUNT(*) AS recent_month_students
+FROM Student
+WHERE registration_date >= CURRENT_DATE - INTERVAL 1 MONTH;
+
+-- За последний месяц
+SELECT COUNT(*) AS recent_month_students
+FROM Student
+WHERE registration_date >= CURRENT_DATE - INTERVAL 1 MONTH;
+
+-- За последний год
+SELECT COUNT(*) AS recent_year_students
+FROM Student
+WHERE registration_date >= CURRENT_DATE - INTERVAL 1 YEAR;
 ```
 
 ### Набор уровней сложности
 
 ```sql
+-- Все уровни сложностей, которые сейчас есть у каких-либо учебных элементов
+SELECT DISTINCT difficulty_level
+FROM LearningElement
+WHERE difficulty_level IS NOT NULL;
 ```
 
 ### Набор типов учебных элементов (видео/текст/изображение/аудио/тест/форма) 
 
 ```sql
-
+SELECT DISTINCT et.type_name
+FROM ElementType et
+JOIN LearningElement e ON e.element_type_id = et.element_type_id;
 ```
 
 # Задание 2
