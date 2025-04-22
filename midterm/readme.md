@@ -297,8 +297,113 @@ JOIN MaxCount mc ON tc.student_count = mc.max_count;
 
 # Задание 3
 
+### Студент
 
+```
+MULTI
+HSET student:101 registration_date "2024-01-01"
+ZADD student_registration 1704067200 student:101
+EXEC
+```
 
-# Задание 4
+### Курс
+
+```
+MULTI
+HSET course:10 title "Data Engineering with Hadoop"
+SADD course:all 10
+EXEC
+```
+
+### Модуль
+
+```
+MULTI
+HSET module:1 title "Foundations of Big Data" course_id 10
+RPUSH course:10:modules 1
+EXEC
+```
+
+### Урок
+
+```
+MULTI
+HSET lesson:2 title "HDFS Basics" module_id 1 topic_id 900
+RPUSH module:1:lessons 2
+RPUSH topic:900:lessons 2
+EXEC
+```
+
+### Учебный элемент - видео
+
+```
+MULTI
+HSET element:5 lesson_id 2 type_id 2 difficulty 4 is_required 1
+HSET element:5 metadata '{"video_url": "https://example/example.mp4"}'
+RPUSH lesson:2:elements 5
+SADD type:2:elements 5
+ZADD difficulty:4:elements 0 element:5
+EXEC
+```
+
+### Тип учебного элемента
+
+```
+MULTI
+HSET element_type:2 type_name "video"
+HSET element_types 2 "video"
+EXEC
+```
+
+### Темы
+
+```
+MULTI
+HSET topic:900 name "Hadoop"
+HSET topic_names 900 "Hadoop"
+SADD topics:all 900
+EXEC
+```
+
+### Прогресс студента и его информация
+
+```
+MULTI
+HSET student:101:progress:10:1:2:5 course_id 10
+HSET student:101:progress:10:1:2:5 module_id 1
+HSET student:101:progress:10:1:2:5 lesson_id 2
+HSET student:101:progress:10:1:2:5 topic_id 900
+HSET student:101:progress:10:1:2:5 type_id 2
+HSET student:101:progress:10:1:2:5 difficulty_level 4
+HSET student:101:progress:10:1:2:5 is_required 1
+HSET student:101:progress:10:1:2:5 started_at 1741000000
+HSET student:101:progress:10:1:2:5 finished_at 1741000540
+HSET student:101:progress:10:1:2:5 score 90.00
+
+SADD topic:900:students student:101
+SADD student:101:completed_elements element:5
+RPUSH student:101:course:10:progress element:5
+
+EXEC
+```
+
+# Задание 5
+
+### Найти все курсы про Hadoop со сложностью больше трех
+
+```
+SINTER SUNION course:*:tags Hadoop SUNION difficulty:4:elements difficulty:5:elements
+```
+
+### Найти всех студентов, зарегистрированных в прошлом году
+
+```
+# Диапазон timestamp для 2024 года:
+# 2024-01-01 = 1704067200
+# 2024-12-31 = 1735689599
+
+ZRANGEBYSCORE student_registration 1704067200 1735689599
+```
+
 
 
